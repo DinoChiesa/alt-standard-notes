@@ -4,7 +4,7 @@
 // add one note to standard notes for a user from sync.standardnotes.org
 //
 // created: Wed Oct 18 18:52:53 2017
-// last saved: <2018-November-20 10:08:34>
+// last saved: <2018-November-20 12:00:27>
 
 /* jshint esversion: 6, node: true */
 /* global process, console, Buffer */
@@ -31,7 +31,7 @@ function getPassword() {
       return netrc[parsedUrl.hostname].password;
     }
   }
-  return readlineSync.question(util.format('Password for %s@%s: ', email, baseUrl), { hideEchoBack: true });
+  return readlineSync.question(util.format('Password for %s [%s]: ', email, baseUrl), { hideEchoBack: true });
 }
 
 function usage() {
