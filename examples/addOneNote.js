@@ -4,7 +4,7 @@
 // add one note to standard notes for a user from sync.standardnotes.org
 //
 // created: Wed Oct 18 18:52:53 2017
-// last saved: <2018-November-20 12:40:53>
+// last saved: <2018-November-20 12:50:17>
 
 /* jshint esversion: 6, node: true */
 /* global process, console, Buffer */
@@ -17,6 +17,7 @@ const sn           = require('alt-standard-notes'),
       version      = '20181120-1236';
 
 var tryUseNetRc = true;
+var quiet = false;
 var email = null;
 
 function contriveNote() {
@@ -37,15 +38,9 @@ function getPassword() {
 
 function usage() {
   var path = require('path');
-  console.log('usage:\n  %s --email xxx@example.org [--nonetrc]', path.basename(process.argv[1]));
+  console.log('usage:\n  %s --email xxx@example.org [--nonetrc] [--quiet]', path.basename(process.argv[1]));
   process.exit(1);
 }
-
-function postNote
-
-console.log(
-  'StandardNotes addOneNote tool, version: ' + version + '\n' +
-    'Node.js ' + process.version + '\n');
 
 function main(args) {
   var awaiting = null;
@@ -58,6 +53,10 @@ function main(args) {
 
     case '--nonetrc':
       tryUseNetRc = false;
+      break;
+
+    case '--quiet':
+      quiet = true;
       break;
 
     case '--help':
@@ -74,6 +73,12 @@ function main(args) {
       break;
     }
   });
+
+  if ( ! quiet) {
+    console.log(
+      'StandardNotes addOneNote tool, version: ' + version + '\n' +
+        'Node.js ' + process.version + '\n');
+  }
 
   sn.signin(email, getPassword)
     .then( (signinResult) => {
