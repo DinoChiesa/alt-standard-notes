@@ -1,0 +1,17 @@
+{
+  "name": "alt-standard-notes",
+  "version": "0.0.1",
+  "description": "",
+  "main": "alt-standard-notes.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Dino Chiesa <dchiesa@google.com>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "crypto-js": "^3.1.9-1",
+    "debug": "^4.1.0",
+    "merge": "^1.2.1",
+    "request": "^2.88.0"
+  }
+}
