@@ -4,7 +4,7 @@
 // add one note to standard notes for a user from sync.standardnotes.org
 //
 // created: Wed Oct 18 18:52:53 2017
-// last saved: <2018-November-20 12:00:27>
+// last saved: <2018-November-20 12:40:53>
 
 /* jshint esversion: 6, node: true */
 /* global process, console, Buffer */
@@ -13,7 +13,8 @@ const sn           = require('alt-standard-notes'),
       netrc        = require('netrc')(),
       util         = require('util'),
       readlineSync = require('readline-sync'),
-      url          = require('url');
+      url          = require('url'),
+      version      = '20181120-1236';
 
 var tryUseNetRc = true;
 var email = null;
@@ -39,6 +40,12 @@ function usage() {
   console.log('usage:\n  %s --email xxx@example.org [--nonetrc]', path.basename(process.argv[1]));
   process.exit(1);
 }
+
+function postNote
+
+console.log(
+  'StandardNotes addOneNote tool, version: ' + version + '\n' +
+    'Node.js ' + process.version + '\n');
 
 function main(args) {
   var awaiting = null;
@@ -70,13 +77,12 @@ function main(args) {
 
   sn.signin(email, getPassword)
     .then( (signinResult) => {
-      sn.postNewNote(
-        contriveNote().getEncryptedForm(signinResult.keys), signinResult.token)
-        .then ((result) => {
-          console.log('post result: ' + JSON.stringify(result));
-        });
+      return sn.postNewNote(contriveNote(), signinResult.keys, signinResult.token);
     })
-    .catch((error) => {
+    .then( (result) => {
+      console.log('post result: ' + JSON.stringify(result));
+    })
+    .catch( (error) => {
       console.log('error: ' + JSON.stringify(error));
     });
 

@@ -15,8 +15,7 @@
 
 const debug    = require('debug')('alt-standard-notes'), 
       util     = require('util'),
-      request  = require('request'), 
-      CryptoJS = require('crypto-js');
+      request  = require('request');
 
 const SNNote   = require ('./snnote.js'),
       sncrypto = require ('./sncrypto.js');
@@ -51,22 +50,24 @@ function getAuthParams(email) {
 
 function signin(email, getPasswordFn) {
   return new Promise( (resolve, reject) => {
+    var allKeys;
     getAuthParams(email)
-      .then((authParams) =>{
-      debug('received authParams: ' + JSON.stringify(authParams, null, 2));
-      sncrypto.computeEncryptionKeysForUser(getPasswordFn(), authParams)
-        .then((keys) => {
-          debug('keys: ' + JSON.stringify(keys));
-          authenticate(email, keys.pw)
-            .then ((signinResult) => {
-              debug('signin result: ' + JSON.stringify(signinResult));
-              signinResult.keys = keys;
-              resolve(signinResult);
-            });
-        });
+      .then( (authParams) => {
+        debug('received authParams: ' + JSON.stringify(authParams, null, 2));
+        return sncrypto.computeEncryptionKeysForUser(getPasswordFn(), authParams);
+      })
+      .then( (keys) => {
+        debug('keys: ' + JSON.stringify(keys));
+        allKeys = keys;
+        return authenticate(email, keys.pw);
+      })
+      .then( (signinResult) => {
+        debug('signin result: ' + JSON.stringify(signinResult));
+        signinResult.keys = allKeys;
+        return resolve(signinResult);
       })
       .catch( (error) => {
-        reject(error);
+        return reject(error);
       });
   });
 }
@@ -89,9 +90,9 @@ function authenticate(email, password) {
   });
 }
 
-function postNewNote(snnote, token) {
+function postNewNote(rawNote, keys, token) {
   return new Promise( (resolve, reject) => {
-    var payload = {limit: 10, items: [ snnote ]};
+    var payload = {limit: 10, items: [ rawNote.getEncryptedForm(keys) ]};
     var headers = { 'content-type': 'application/json', authorization: 'Bearer ' + token };
     var options = { method:'POST', uri:util.format('%s/items/sync', baseUrl), gzip:true, headers:headers, json:payload };
     request(options, function (error, response, body) {
@@ -103,7 +104,6 @@ function postNewNote(snnote, token) {
     });
   });
 }
-
 
 module.exports = {
   getAuthParams,
