@@ -4,7 +4,7 @@
 // add one note to standard notes for a user from sync.standardnotes.org
 //
 // created: Wed Oct 18 18:52:53 2017
-// last saved: <2018-November-20 12:50:17>
+// last saved: <2018-November-20 16:07:33>
 
 /* jshint esversion: 6, node: true */
 /* global process, console, Buffer */
@@ -14,19 +14,19 @@ const sn           = require('alt-standard-notes'),
       util         = require('util'),
       readlineSync = require('readline-sync'),
       url          = require('url'),
-      version      = '20181120-1236';
+      version      = '20181120-1550';
 
 var tryUseNetRc = true;
 var quiet = false;
 var email = null;
 
 function contriveNote() {
-  var note = new sn.SNNote("this is the text of the new note.");
+  var note = new sn.Note("this is the text of the new note.");
   return note;
 }
 
 function getPassword() {
-  let baseUrl = sn.getBaseUrl();
+  let baseUrl = sn.getDefaultBaseUrl();
   if (tryUseNetRc) {
     var parsedUrl = url.parse(baseUrl);
     if ( netrc[parsedUrl.hostname]) {
@@ -80,10 +80,8 @@ function main(args) {
         'Node.js ' + process.version + '\n');
   }
 
-  sn.signin(email, getPassword)
-    .then( (signinResult) => {
-      return sn.postNewNote(contriveNote(), signinResult.keys, signinResult.token);
-    })
+  sn.signin({email:email, getPasswordFn: getPassword})
+    .then( (connection) => sn.insertNote(connection, contriveNote()) )
     .then( (result) => {
       console.log('post result: ' + JSON.stringify(result));
     })

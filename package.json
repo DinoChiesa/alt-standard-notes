@@ -1,7 +1,7 @@
 {
   "name": "alt-standard-notes",
-  "version": "0.0.2",
-  "description": "",
+  "version": "0.0.3",
+  "description": "an alternative library for standard notes, for use from nodejs",
   "main": "alt-standard-notes.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

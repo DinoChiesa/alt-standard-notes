@@ -9,19 +9,26 @@ function newNoteTitle() {
   return "New Note " + (new Date().toISOString());
 }
 
+function generateUUID() {
+  var d = new Date().getTime();
+  var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = (d + Math.random()*16)%16 | 0;
+        d = Math.floor(d/16);
+        return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+      });
+  return uuid;
+}
+
 function SNNote(noteText, title) {
   this.text = noteText;
   this.title = title || newNoteTitle();
-  this.uuid = sncrypto.generateUUID();
+  this.uuid = generateUUID();
   this.created_at = (new Date()).toISOString();
+  this.updated_at = (new Date()).toISOString();
 }
 
 SNNote.prototype.structureParams = function() {
-  var params = {
-        title: this.title,
-        text: this.text
-      };
-    return params;
+  return { title: this.title, text: this.text };
 };
 
 SNNote.prototype.getEncryptedForm = function(keys) {
@@ -35,8 +42,8 @@ SNNote.prototype.getEncryptedForm = function(keys) {
   });
 };
 
-SNNote.prototype.createContentJSONFromProperties = function() {
-  return this.structureParams();
-};
+// SNNote.prototype.createContentJSONFromProperties = function() {
+//   return this.structureParams();
+// };
 
 module.exports = SNNote;
