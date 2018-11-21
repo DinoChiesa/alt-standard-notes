@@ -3,8 +3,10 @@
 //
 // StandardNotes crypto stuff.
 //
+// See https://github.com/standardnotes/documentation/blob/master/client-development.md
+//
 // created: Thu Oct 19 09:25:57 2017
-// last saved: <2018-November-20 09:21:40>
+// last saved: <2018-November-20 15:46:42>
 
 /* jshint esversion: 6, node: true */
 /* global process, console, Buffer */
@@ -19,23 +21,13 @@
     return CryptoJS.lib.WordArray.random(bits/8).toString();
   }
 
-  function generateUUID() {
-    var d = new Date().getTime();
-    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          var r = (d + Math.random()*16)%16 | 0;
-          d = Math.floor(d/16);
-          return (c=='x' ? r : (r&0x3|0x8)).toString(16);
-        });
-    return uuid;
-  }
-
   function decryptText({ciphertextToAuth, contentCiphertext, encryptionKey, iv, authHash, authKey} = {}, requiresAuth) {
     if(requiresAuth && !authHash) {
       console.error("Auth hash is required.");
       return;
     }
 
-    if(authHash) {
+    if (authHash) {
       var localAuthHash = hmac256(ciphertextToAuth, authKey);
       if(authHash !== localAuthHash) {
         console.error("Auth hash does not match, returning null.");
@@ -55,7 +47,6 @@
     return CryptoJS.PBKDF2(passphrase, salt, { keySize: 512/32 }).toString();
   }
   
-
   function firstHalfOfKey(key) {
     return key.substring(0, key.length/2);
   }
@@ -119,7 +110,7 @@
     // encrypt content
     var ek = firstHalfOfKey(item_key);
     var ak = secondHalfOfKey(item_key);
-    var ciphertext = __encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, item.uuid, version);
+    var ciphertext = __encryptString(JSON.stringify(item.structureParams()), ek, ak, item.uuid, version);
     params.content = ciphertext;
     return params;
   }
@@ -134,23 +125,26 @@
     return { pw:firstThird, mk:secondThird, ak: thirdThird};
   }
 
-  function generateSalt(identifier, version, cost, nonce) {
+  function generateSalt({identifier, version, cost, nonce}) {
     var result = sha256([identifier, "SF", version, cost, nonce].join(":"));
     return result;
   }
   
   function computeEncryptionKeysForUser(password, authParams) {
-    return new Promise ((resolve, reject) => {
+    return new Promise( (resolve, reject) => {
       var pw_salt;
 
-      if(authParams.version == "003") {
-        if(!authParams.identifier) {
+      if ( ! password ) { return reject("missing password"); }
+      
+      if (authParams.version == "003") {
+        
+        if (!authParams.identifier) {
           debug("authParams is missing identifier.");
           reject("missing identifier");
           return;
         }
         // Salt is computed from identifier + pw_nonce from server
-        pw_salt = generateSalt(authParams.identifier, authParams.version, authParams.pw_cost, authParams.pw_nonce);
+        pw_salt = generateSalt(authParams);
       }
       else {
         // Salt is returned from server
@@ -164,20 +158,18 @@
   
 
  module.exports = {
-   generateRandomKey                    : generateRandomKey,
-   generateUUID                         : generateUUID,
-   decryptText                          : decryptText,
-   encryptText                          : encryptText,
-   generateRandomEncryptionKey          : generateRandomEncryptionKey,
-   firstHalfOfKey                       : firstHalfOfKey,
-   secondHalfOfKey                      : secondHalfOfKey,
-   base64                               : base64,
-   base64Decode                         : base64Decode,
-   sha256                               : sha256,
-   hmac256                              : hmac256,
-   computeEncryptionKeysForUser         : computeEncryptionKeysForUser,
-   //generateInitialEncryptionKeysForUser : generateInitialEncryptionKeysForUser,
-   encryptItem                          : encryptItem
+   generateRandomKey, 
+   decryptText, 
+   encryptText, 
+   generateRandomEncryptionKey, 
+   firstHalfOfKey, 
+   secondHalfOfKey, 
+   base64, 
+   base64Decode, 
+   sha256, 
+   hmac256, 
+   computeEncryptionKeysForUser, 
+   encryptItem
  };
 
 }());
