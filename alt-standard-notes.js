@@ -72,6 +72,112 @@ function authenticate(conn, keys) {
   });
 }
 
+
+function encryptionComponentsFromString(string, encryptionKey, authKey) {
+  var encryptionVersion = string.substring(0, 3);
+  if(encryptionVersion === "001") {
+    return {
+      contentCiphertext: string.substring(3, string.length),
+      encryptionVersion: encryptionVersion,
+      ciphertextToAuth: string,
+      iv: null,
+      authHash: null,
+      encryptionKey: encryptionKey,
+      authKey: authKey
+    };
+  }
+  let components = string.split(":");
+  return {
+    encryptionVersion: components[0],
+    authHash: components[1],
+    uuid: components[2],
+    iv: components[3],
+    contentCiphertext: components[4],
+    authParams: components[5],
+    ciphertextToAuth: [components[0], components[2], components[3], components[4]].join(":"),
+    encryptionKey: encryptionKey,
+    authKey: authKey
+  };
+
+}
+
+function getItemDecryptor(keys) {
+  return function decryptOneItem(item, ix, a ) {
+    if(typeof item.content != "string") {
+      // Content is already an object, can't do anything with it.
+      return;
+    }
+
+    if(item.content.startsWith("000")) {
+      item.content = JSON.parse(sncrypto.base64Decode(item.content.substring(3, item.content.length)));
+      return;
+    }
+
+    if(!item.enc_item_key) {
+      // This needs to be here to continue, return otherwise
+      console.log("Missing item encryption key, skipping decryption.");
+      return;
+    }
+
+    // decrypt encrypted key
+    var encryptedItemKey = item.enc_item_key;
+    var requiresAuth = true;
+    if(!encryptedItemKey.startsWith("002") && !encryptedItemKey.startsWith("003")) {
+      // legacy encryption type, has no prefix
+      encryptedItemKey = "001" + encryptedItemKey;
+      requiresAuth = false;
+    }
+    var keyParams = encryptionComponentsFromString(encryptedItemKey, keys.mk, keys.ak);
+
+    // return if uuid in auth hash does not match item uuid. Signs of tampering.
+    if(keyParams.uuid && keyParams.uuid !== item.uuid) {
+      console.error("Item key params UUID does not match item UUID");
+      if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
+      item.errorDecrypting = true;
+      return;
+    }
+
+    var item_key = sncrypto.decryptText(keyParams, requiresAuth);
+
+    if(!item_key) {
+      console.log("Error decrypting item", item);
+      if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
+      item.errorDecrypting = true;
+      return;
+    }
+
+    // decrypt content
+    var ek = sncrypto.firstHalfOfKey(item_key);
+    var ak = sncrypto.secondHalfOfKey(item_key);
+    var itemParams = encryptionComponentsFromString(item.content, ek, ak);
+
+    item.auth_params = JSON.parse(sncrypto.base64Decode(itemParams.authParams));
+
+    // return if uuid in auth hash does not match item uuid. Signs of tampering.
+    if(itemParams.uuid && itemParams.uuid !== item.uuid) {
+      if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
+      item.errorDecrypting = true;
+      return;
+    }
+
+    if(!itemParams.authHash) {
+      // legacy 001
+      itemParams.authHash = item.auth_hash;
+    }
+
+    var content = sncrypto.decryptText(itemParams, true);
+    if(!content) {
+      if(!item.errorDecrypting) { item.errorDecryptingValueChanged = true;}
+      item.errorDecrypting = true;
+    } else {
+      if(item.errorDecrypting == true) { item.errorDecryptingValueChanged = true;}
+      // Content should only be set if it was successfully decrypted, and should otherwise remain unchanged.
+      item.errorDecrypting = false;
+      item.content = content;
+    }
+  };
+}
+
 function upsertNote(conn, rawNote) {
   return new Promise( (resolve, reject) => {
     var payload = { limit: 10, items: [ rawNote.getEncryptedForm(conn.getKeys()) ]};
@@ -88,11 +194,12 @@ function upsertNote(conn, rawNote) {
         debug('exception during notes sync');
         return reject(error);
       }
-      
+      body.retrieved_items.forEach(getItemDecryptor(conn.getKeys()));
       return resolve(body);
     });
   });
 }
+
 
 function readNotes(conn, options) {
   return new Promise ( (resolve, reject) => {
@@ -116,6 +223,7 @@ function readNotes(conn, options) {
         debug('exception during notes retrieval');
         return reject(error);
       }
+      body.retrieved_items.forEach(getItemDecryptor(conn.getKeys()));
       resolve(body);
     });
   });
@@ -136,7 +244,6 @@ function signin({ email, baseUrl, getPasswordFn }) {
       .then( (authParams) => {
         credential.authParams = authParams;
         debug('signin received authParams: ' + JSON.stringify(authParams, null, 2));
-        debug('signin getPasswordFn: ' + getPasswordFn);
         return sncrypto.computeEncryptionKeysForUser(getPasswordFn(), authParams);
       })
       .then( (keys) => {

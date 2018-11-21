@@ -6,7 +6,7 @@
 // See https://github.com/standardnotes/documentation/blob/master/client-development.md
 //
 // created: Thu Oct 19 09:25:57 2017
-// last saved: <2018-November-20 15:46:42>
+// last saved: <2018-November-20 16:34:39>
 
 /* jshint esversion: 6, node: true */
 /* global process, console, Buffer */
@@ -21,6 +21,15 @@
     return CryptoJS.lib.WordArray.random(bits/8).toString();
   }
 
+  function generateItemEncryptionKey() {
+    // Generates a key that will be split in half, each being 256 bits. So total length will need to be 512.
+    let length = 512,
+        cost = 1, 
+        salt = generateRandomKey(length), 
+        passphrase = generateRandomKey(length);
+    return pbkdf2(passphrase, salt, cost, length);
+  }
+  
   function decryptText({ciphertextToAuth, contentCiphertext, encryptionKey, iv, authHash, authKey} = {}, requiresAuth) {
     if(requiresAuth && !authHash) {
       console.error("Auth hash is required.");
@@ -55,12 +64,18 @@
     return key.substring(key.length/2, key.length);
   }
 
-  function base64(text) {
-    return window.btoa(text);
+  function base64(textString) {
+    var words = CryptoJS.enc.Utf8.parse(textString);
+    var base64 = CryptoJS.enc.Base64.stringify(words);
+    return base64;
   }
 
   function base64Decode(base64String) {
-    return window.atob(base64String);
+    if ( ! base64String) return null;
+    if (base64String.length == 0) return null;
+    var words = CryptoJS.enc.Base64.parse(base64String);
+    var textString = CryptoJS.enc.Utf8.stringify(words);
+    return textString;
   }
 
   function pbkdf2(password, pw_salt, pw_cost, length) {
@@ -99,21 +114,65 @@
     return fullCiphertext;
   }
 
-  // https://github.com/standardnotes/web/blob/master/app/assets/javascripts/app/services/encryption/encryptionHelper.js
-  function encryptItem(item, keys) {
-    var version = "002";
+
+  function _private_encryptString(string, encryptionKey, authKey, uuid, auth_params) {
+    var fullCiphertext, contentCiphertext;
+    if(auth_params.version === "001") {
+      contentCiphertext = encryptText(string, encryptionKey, null);
+      fullCiphertext = auth_params.version + contentCiphertext;
+    }
+    else {
+      var iv = generateRandomKey(128);
+      contentCiphertext = encryptText(string, encryptionKey, iv);
+      var ciphertextToAuth = [auth_params.version, uuid, iv, contentCiphertext].join(":");
+      var authHash = hmac256(ciphertextToAuth, authKey);
+      var authParamsString = base64(JSON.stringify(auth_params));
+      fullCiphertext = [auth_params.version, authHash, uuid, iv, contentCiphertext, authParamsString].join(":");
+    }
+
+    return fullCiphertext;
+  }
+  
+  // // https://github.com/standardnotes/web/blob/master/app/assets/javascripts/app/services/encryption/encryptionHelper.js
+  // function encryptItem(item, keys) {
+  //   var version = "002";
+  //   var params = {};
+  //   // encrypt item key
+  //   var item_key = generateRandomEncryptionKey();
+  //   params.enc_item_key = __encryptString(item_key, keys.mk, keys.ak, item.uuid, version);
+  // 
+  //   // encrypt content
+  //   var ek = firstHalfOfKey(item_key);
+  //   var ak = secondHalfOfKey(item_key);
+  //   var ciphertext = __encryptString(JSON.stringify(item.structureParams()), ek, ak, item.uuid, version);
+  //   params.content = ciphertext;
+  //   return params;
+  // }
+
+  function encryptItem(item, keys, auth_params) {
     var params = {};
     // encrypt item key
-    var item_key = generateRandomEncryptionKey();
-    params.enc_item_key = __encryptString(item_key, keys.mk, keys.ak, item.uuid, version);
+    var item_key = generateItemEncryptionKey();
+    if(auth_params.version === "001") {
+      // legacy
+      params.enc_item_key = encryptText(item_key, keys.mk, null);
+    }
+    else {
+      params.enc_item_key = _private_encryptString(item_key, keys.mk, keys.ak, item.uuid, auth_params);
+    }
 
     // encrypt content
     var ek = firstHalfOfKey(item_key);
     var ak = secondHalfOfKey(item_key);
-    var ciphertext = __encryptString(JSON.stringify(item.structureParams()), ek, ak, item.uuid, version);
+    var ciphertext = _private_encryptString(JSON.stringify(item.createContentJSONFromProperties()), ek, ak, item.uuid, auth_params);
+    if(auth_params.version === "001") {
+      var authHash = hmac256(ciphertext, ak);
+      params.auth_hash = authHash;
+    }
     params.content = ciphertext;
     return params;
   }
+  
 
   function generateSymmetricKeyPair(password, pw_salt, pw_cost) {
     var output = pbkdf2(password, pw_salt, pw_cost, DefaultPBKDF2Length);

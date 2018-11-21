@@ -1,6 +1,6 @@
 {
   "name": "standard-notes-cli",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,9 +9,10 @@
   "author": "Dino Chiesa <dchiesa@google.com>",
   "license": "Apache-2.0",
   "dependencies": {
-    "alt-standard-notes": "git://github.com/DinoChiesa/alt-standard-notes.git#v0.0.3",
+    "alt-standard-notes": "git://github.com/DinoChiesa/alt-standard-notes.git#v0.0.4",
     "netrc": "^0.1.4",
     "readline-sync": "^1.4.9",
+    "sprintf-js": "^1.1.1",
     "url": "^0.11.0"
   }
 }
