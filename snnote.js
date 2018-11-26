@@ -31,9 +31,9 @@ SNNote.prototype.structureParams = function() {
   return { title: this.title, text: this.text };
 };
 
-SNNote.prototype.getEncryptedForm = function(keys) {
+SNNote.prototype.getEncryptedForm = function(keys, authParams) {
   var theItem = this;
-  var itemInEncryptedForm = sncrypto.encryptItem(theItem, keys);
+  var itemInEncryptedForm = sncrypto.encryptItem(theItem, keys, authParams);
   return merge(itemInEncryptedForm, {
     uuid: this.uuid,
     content_type : "Note",
@@ -42,8 +42,8 @@ SNNote.prototype.getEncryptedForm = function(keys) {
   });
 };
 
-// SNNote.prototype.createContentJSONFromProperties = function() {
-//   return this.structureParams();
-// };
+ SNNote.prototype.createContentJSONFromProperties = function() {
+   return this.structureParams();
+ };
 
 module.exports = SNNote;

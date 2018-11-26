@@ -5,16 +5,14 @@
 //
 // See https://github.com/standardnotes/documentation/blob/master/client-development.md
 //
-// created: Thu Oct 19 09:25:57 2017
-// last saved: <2018-November-20 16:34:39>
 
-/* jshint esversion: 6, node: true */
-/* global process, console, Buffer */
+/* jshint esversion: 6, node: true, strict:false, camelcase:false */
+/* global console  */
 
 (function (){
-  const CryptoJS = require('crypto-js'), 
+  const CryptoJS = require('crypto-js'),
         debug    = require('debug')('alt-standard-notes');
-  
+
   const DefaultPBKDF2Length = 768;
 
   function generateRandomKey(bits) {
@@ -24,12 +22,12 @@
   function generateItemEncryptionKey() {
     // Generates a key that will be split in half, each being 256 bits. So total length will need to be 512.
     let length = 512,
-        cost = 1, 
-        salt = generateRandomKey(length), 
+        cost = 1,
+        salt = generateRandomKey(length),
         passphrase = generateRandomKey(length);
     return pbkdf2(passphrase, salt, cost, length);
   }
-  
+
   function decryptText({ciphertextToAuth, contentCiphertext, encryptionKey, iv, authHash, authKey} = {}, requiresAuth) {
     if(requiresAuth && !authHash) {
       console.error("Auth hash is required.");
@@ -55,7 +53,7 @@
     var passphrase = generateRandomKey(512);
     return CryptoJS.PBKDF2(passphrase, salt, { keySize: 512/32 }).toString();
   }
-  
+
   function firstHalfOfKey(key) {
     return key.substring(0, key.length/2);
   }
@@ -132,7 +130,7 @@
 
     return fullCiphertext;
   }
-  
+
   // // https://github.com/standardnotes/web/blob/master/app/assets/javascripts/app/services/encryption/encryptionHelper.js
   // function encryptItem(item, keys) {
   //   var version = "002";
@@ -140,7 +138,7 @@
   //   // encrypt item key
   //   var item_key = generateRandomEncryptionKey();
   //   params.enc_item_key = __encryptString(item_key, keys.mk, keys.ak, item.uuid, version);
-  // 
+  //
   //   // encrypt content
   //   var ek = firstHalfOfKey(item_key);
   //   var ak = secondHalfOfKey(item_key);
@@ -172,7 +170,7 @@
     params.content = ciphertext;
     return params;
   }
-  
+
 
   function generateSymmetricKeyPair(password, pw_salt, pw_cost) {
     var output = pbkdf2(password, pw_salt, pw_cost, DefaultPBKDF2Length);
@@ -188,15 +186,15 @@
     var result = sha256([identifier, "SF", version, cost, nonce].join(":"));
     return result;
   }
-  
+
   function computeEncryptionKeysForUser(password, authParams) {
     return new Promise( (resolve, reject) => {
       var pw_salt;
 
       if ( ! password ) { return reject("missing password"); }
-      
+
       if (authParams.version == "003") {
-        
+
         if (!authParams.identifier) {
           debug("authParams is missing identifier.");
           reject("missing identifier");
@@ -214,20 +212,20 @@
       resolve(keys);
     });
   }
-  
+
 
  module.exports = {
-   generateRandomKey, 
-   decryptText, 
-   encryptText, 
-   generateRandomEncryptionKey, 
-   firstHalfOfKey, 
-   secondHalfOfKey, 
-   base64, 
-   base64Decode, 
-   sha256, 
-   hmac256, 
-   computeEncryptionKeysForUser, 
+   generateRandomKey,
+   decryptText,
+   encryptText,
+   generateRandomEncryptionKey,
+   firstHalfOfKey,
+   secondHalfOfKey,
+   base64,
+   base64Decode,
+   sha256,
+   hmac256,
+   computeEncryptionKeysForUser,
    encryptItem
  };
 

@@ -1,6 +1,6 @@
 {
   "name": "alt-standard-notes",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "an alternative library for standard notes, for use from nodejs",
   "main": "alt-standard-notes.js",
   "scripts": {

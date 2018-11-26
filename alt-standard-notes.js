@@ -6,19 +6,19 @@
 // line app. The doc is completely inadequte, almost absent.  What is available
 // is inaccurate and lacks context. Fiddling around with it was a waste of time.
 //
-// This module actually works, simply. 
+// This module actually works, simply.
 
 /* jshint esversion: 6, node: true */
 /* global process, console, Buffer */
 
 'use strict';
 
-const debug    = require('debug')('alt-standard-notes'), 
+const debug    = require('debug')('alt-standard-notes'),
       util     = require('util'),
       request  = require('request');
 
 const Note     = require ('./snnote.js'),
-      sncrypto = require ('./sncrypto.js'), 
+      sncrypto = require ('./sncrypto.js'),
       credStash = require ('./credential-stash.js');
 
 const DefaultBaseUrl = 'https://sync.standardnotes.org';
@@ -42,7 +42,7 @@ function getAuthParams(conn) {
       }
       var authParams = JSON.parse(body);
       if  ( authParams.error ) {
-        return reject(authParams.error) ;        
+        return reject(authParams.error) ;
       }
       return resolve(authParams);
     });
@@ -180,7 +180,7 @@ function getItemDecryptor(keys) {
 
 function upsertNote(conn, rawNote) {
   return new Promise( (resolve, reject) => {
-    var payload = { limit: 10, items: [ rawNote.getEncryptedForm(conn.getKeys()) ]};
+    var payload = { limit: 10, items: [ rawNote.getEncryptedForm(conn.getKeys(), conn.getAuthParams()) ]};
     var headers = { 'content-type': 'application/json', authorization: 'Bearer ' + conn.getToken() };
     var options = {
           method:'POST',
@@ -231,7 +231,7 @@ function readNotes(conn, options) {
 
 function signin({ email, baseUrl, getPasswordFn }) {
   var conn = new Connection({email, baseUrl});
-  
+
   return new Promise( (resolve, reject) => {
     var credential = credStash.getCredential(conn.getEmail(), conn.getBaseUrl());
     if (credential) {
@@ -294,12 +294,12 @@ var Connection = (function (){
 
 module.exports = {
   signin,
-  getDefaultBaseUrl, 
+  getDefaultBaseUrl,
   upsertNote,
   insertNote : upsertNote,
   updateNote : upsertNote,
   readNotes,
-  
+
   Note
 
 };
