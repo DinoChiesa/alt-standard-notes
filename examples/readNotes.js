@@ -4,8 +4,8 @@
 // read notes stored in standard notes for a particular user
 //
 
-/* jshint esversion: 6, node: true */
-/* global process, console, Buffer */
+/* jshint esversion: 6, node: true, strict: false, camelcase : false */
+/* global process, console */
 
 const sn           = require('alt-standard-notes'),
       netrc        = require('netrc')(),
@@ -15,24 +15,18 @@ const sn           = require('alt-standard-notes'),
       url          = require('url'),
       version      = '20181126-1115';
 
-var tryUseNetRc = true;
-var quiet = false;
-var email = null;
+var options = {tryUseNetRc : true, quiet : false, email : null};
 
-function contriveNote() {
-  var note = new sn.Note("this is the text of the new note.");
-  return note;
-}
 
 function getPassword() {
   let baseUrl = sn.getDefaultBaseUrl();
-  if (tryUseNetRc) {
+  if (options.tryUseNetRc) {
     var parsedUrl = url.parse(baseUrl);
     if ( netrc[parsedUrl.hostname]) {
       return netrc[parsedUrl.hostname].password;
     }
   }
-  return readlineSync.question(util.format('Password for %s [%s]: ', email, baseUrl), { hideEchoBack: true });
+  return readlineSync.question(util.format('Password for %s [%s]: ', options.email, baseUrl), { hideEchoBack: true });
 }
 
 function usage() {
@@ -46,12 +40,12 @@ function readAllRecords(connection) {
   var showOne = false;
   const BATCH_SIZE = 125;
   let readBatch = function(cursor_token) {
-        return new Promise( (resolve, reject) => {
+        return new Promise( (resolve) => {
           sn.readNotes(connection, { limit: BATCH_SIZE, cursor_token: cursor_token} )
             .then ( (result) => {
               process.stdout.write('.');
               result.retrieved_items.forEach( (item, ix) => {
-                if (item.content_type == "Note" && !item.deleted && item.content) {
+                if (item.content_type === 'Note' && !item.deleted && item.content) {
                   if (showOne) {
                     console.log('read item: ' + JSON.stringify(item));
                     showOne = false;
@@ -60,7 +54,7 @@ function readAllRecords(connection) {
                   aggregated[item.uuid] = {
                     title:content.title || '??',
                     updated_at: item.updated_at,
-                    client_updated_at: content.appData["org.standardnotes.sn"].client_updated_at
+                    client_updated_at: content.appData['org.standardnotes.sn'].client_updated_at
                   };
                 }
               });
@@ -71,17 +65,18 @@ function readAllRecords(connection) {
             });
         });
       };
-
   return readBatch(null);
 }
 
 function byClientUpdatedAt(all) {
   return (key1, key2) => {
     let a = all[key1], b = all[key2];
-    if (a.client_updated_at < b.client_updated_at)
+    if (a.client_updated_at < b.client_updated_at) {
       return -1;
-    if (a.client_updated_at > b.client_updated_at)
+    }
+    if (a.client_updated_at > b.client_updated_at) {
       return 1;
+    }
     return 0;
   };
 }
@@ -93,15 +88,15 @@ function main(args) {
     switch (arg) {
 
     case '--email':
-      awaiting = 'email';
+      options.awaiting = 'email';
       break;
 
     case '--nonetrc':
-      tryUseNetRc = false;
+      options.tryUseNetRc = false;
       break;
 
     case '--quiet':
-      quiet = true;
+      options.quiet = true;
       break;
 
     case '--help':
@@ -109,8 +104,8 @@ function main(args) {
       break;
 
     default:
-      if (awaiting == 'email') {
-        email = arg;
+      if (awaiting === 'email') {
+        options.email = arg;
       }
       else {
         usage();
@@ -119,13 +114,13 @@ function main(args) {
     }
   });
 
-  if ( ! quiet) {
+  if ( ! options.quiet) {
     console.log(
       'StandardNotes readNotes tool, version: ' + version + '\n' +
         'Node.js ' + process.version + '\n');
   }
 
-  var p = sn.signin({email:email, getPasswordFn: getPassword})
+  var p = sn.signin({email:options.email, getPasswordFn: getPassword})
     .then( readAllRecords )
     .then( (all) => {
         console.log('\nretrieved %d items', Object.keys(all).length);
@@ -143,4 +138,3 @@ function main(args) {
 }
 
 main(process.argv.slice(2));
-
