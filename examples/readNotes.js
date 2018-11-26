@@ -4,7 +4,7 @@
 // read notes stored in standard notes for a particular user
 //
 // created: Wed Oct 18 18:52:53 2017
-// last saved: <2018-November-20 16:46:27>
+// last saved: <2018-November-26 11:15:14>
 
 /* jshint esversion: 6, node: true */
 /* global process, console, Buffer */
@@ -15,7 +15,7 @@ const sn           = require('alt-standard-notes'),
       sprintf      = require('sprintf-js').sprintf,
       readlineSync = require('readline-sync'),
       url          = require('url'),
-      version      = '20181120-1550';
+      version      = '20181126-1115';
 
 var tryUseNetRc = true;
 var quiet = false;
@@ -42,6 +42,40 @@ function usage() {
   console.log('usage:\n  %s --email xxx@example.org [--nonetrc] [--quiet]', path.basename(process.argv[1]));
   process.exit(1);
 }
+
+function readAllRecords(connection) {
+  var aggregated = {};
+  var showOne = false;
+  const BATCH_SIZE = 125;
+  let readBatch = function(cursor_token) {
+        return new Promise( (resolve, reject) => {
+          sn.readNotes(connection, { limit: BATCH_SIZE, cursor_token: cursor_token} )
+            .then ( (result) => {
+              result.retrieved_items.forEach( (item, ix) => {
+                if (item.content_type == "Note" && !item.deleted && item.content) {
+                  if (showOne) {
+                    console.log('read item: ' + JSON.stringify(item));
+                    showOne = false;
+                  }
+                  var content = JSON.parse(item.content);
+                  aggregated[item.uuid] = {
+                    title:content.title || '??',
+                    updated_at: item.updated_at,
+                    client_updated_at: content.appData["org.standardnotes.sn"].client_updated_at
+                  };
+                }
+              });
+              if (result.cursor_token) {
+                return resolve(readBatch(result.cursor_token) );
+              }
+              return resolve(aggregated);
+            });
+        });
+      };
+
+  return readBatch(null);
+}
+
 
 function main(args) {
   var awaiting = null;
@@ -81,26 +115,30 @@ function main(args) {
         'Node.js ' + process.version + '\n');
   }
 
-  sn.signin({email:email, getPasswordFn: getPassword})
-    .then( (connection) =>  sn.readNotes(connection, {limit:10}) )
-    .then( (result) => {
-      //console.log('read result: ' + JSON.stringify(result));
-      console.log('retrieved %d items', result.retrieved_items.length);
-      result.retrieved_items.forEach( (item, ix) => {
-        if (item.content_type == "Note") {
-          var content = {title:"unknown"};
-          try {
-            console.log('parse: ' + item.content);
-            content = JSON.parse(item.content);
-          }
-          catch (e) {}
-          console.log(sprintf('%3d. %-48s', ix, content.title || '??'));
-        }
-      });
-
-      // "sync_token":"MjoxNTQyNzYwNTU4Ljc5NDM5Mg==\n","cursor_token":"MjoxNTMyMDI4MDk5LjAwMTY2NQ==\n"
-
+  var p = sn.signin({email:email, getPasswordFn: getPassword})
+    .then( readAllRecords )
+    .then( (all) => {
+      try {
+        console.log('retrieved %d items', Object.keys(all).length);
+        Object.keys(all)
+          .sort( (key1, key2) => {
+            let a = all[key1], b = all[key2];
+            if (a.client_updated_at < b.client_updated_at)
+              return -1;
+            if (a.client_updated_at > b.client_updated_at)
+              return 1;
+            return 0;
+          })
+          .forEach( (key, ix) => {
+            var item = all[key];
+            console.log(sprintf('%3d. %-48s  %-24s   %-24s', ix + 1, item.title, item.client_updated_at, item.updated_at ));
+          });
+      }
+      catch (exc) {
+        console.log('exception: ' + exc);
+      }
     })
+
     .catch( (error) => {
       console.log('error: ' + JSON.stringify(error));
     });
