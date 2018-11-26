@@ -66,13 +66,13 @@ function readAllRecords(connection) {
   return readBatch(null);
 }
 
-function byClientUpdatedAt(all) {
+function byNamedProperty(property, all) {
   return (key1, key2) => {
     let a = all[key1], b = all[key2];
-    if (a.client_updated_at < b.client_updated_at) {
+    if (a[property] < b[property]) {
       return -1;
     }
-    if (a.client_updated_at > b.client_updated_at) {
+    if (a[property] > b[property]) {
       return 1;
     }
     return 0;
@@ -107,6 +107,7 @@ function main(args) {
       else {
         usage();
       }
+      awaiting = false;
       break;
     }
   });
@@ -122,7 +123,7 @@ function main(args) {
     .then( (all) => {
         console.log('\nretrieved %d items', Object.keys(all).length);
         Object.keys(all)
-          .sort( byClientUpdatedAt(all) )
+          .sort( byNamedProperty('client_updated_at', all) )
           .forEach( (key, ix) => {
             var item = all[key];
             console.log(sprintf('%3d. %-48s  %-24s   %-24s', ix + 1, item.title, item.client_updated_at, item.updated_at ));
