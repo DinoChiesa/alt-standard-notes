@@ -9,14 +9,12 @@
 
 const sn           = require('alt-standard-notes'),
       netrc        = require('netrc')(),
-      util         = require('util'),
       sprintf      = require('sprintf-js').sprintf,
       readlineSync = require('readline-sync'),
       url          = require('url'),
       version      = '20181126-1115';
 
 var options = {tryUseNetRc : true, quiet : false, email : null};
-
 
 function getPassword() {
   let baseUrl = sn.getDefaultBaseUrl();
@@ -26,7 +24,7 @@ function getPassword() {
       return netrc[parsedUrl.hostname].password;
     }
   }
-  return readlineSync.question(util.format('Password for %s [%s]: ', options.email, baseUrl), { hideEchoBack: true });
+  return readlineSync.question(sprintf('Password for %s [%s]: ', options.email, baseUrl), { hideEchoBack: true });
 }
 
 function usage() {
@@ -44,7 +42,7 @@ function readAllRecords(connection) {
           sn.readNotes(connection, { limit: BATCH_SIZE, cursor_token: cursor_token} )
             .then ( (result) => {
               process.stdout.write('.');
-              result.retrieved_items.forEach( (item, ix) => {
+              result.retrieved_items.forEach( (item) => {
                 if (item.content_type === 'Note' && !item.deleted && item.content) {
                   if (showOne) {
                     console.log('read item: ' + JSON.stringify(item));
@@ -81,14 +79,13 @@ function byClientUpdatedAt(all) {
   };
 }
 
-
 function main(args) {
   var awaiting = null;
   args.forEach(function(arg){
     switch (arg) {
 
     case '--email':
-      options.awaiting = 'email';
+      awaiting = 'email';
       break;
 
     case '--nonetrc':
@@ -120,7 +117,7 @@ function main(args) {
         'Node.js ' + process.version + '\n');
   }
 
-  var p = sn.signin({email:options.email, getPasswordFn: getPassword})
+  sn.signin({email:options.email, getPasswordFn: getPassword})
     .then( readAllRecords )
     .then( (all) => {
         console.log('\nretrieved %d items', Object.keys(all).length);
@@ -134,7 +131,6 @@ function main(args) {
     .catch( (error) => {
       console.log('error: ' + JSON.stringify(error));
     });
-
 }
 
 main(process.argv.slice(2));
