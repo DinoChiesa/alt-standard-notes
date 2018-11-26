@@ -9,7 +9,9 @@ Icon
 **/#*#
 **/*~
 
+notes-DO-NOT-COMMIT.txt
 **/target/
+**/node_modules/
 
 **/*.class
 
