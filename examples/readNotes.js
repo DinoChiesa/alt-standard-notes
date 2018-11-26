@@ -3,8 +3,6 @@
 //
 // read notes stored in standard notes for a particular user
 //
-// created: Wed Oct 18 18:52:53 2017
-// last saved: <2018-November-26 11:15:14>
 
 /* jshint esversion: 6, node: true */
 /* global process, console, Buffer */
@@ -51,6 +49,7 @@ function readAllRecords(connection) {
         return new Promise( (resolve, reject) => {
           sn.readNotes(connection, { limit: BATCH_SIZE, cursor_token: cursor_token} )
             .then ( (result) => {
+              process.stdout.write('.');
               result.retrieved_items.forEach( (item, ix) => {
                 if (item.content_type == "Note" && !item.deleted && item.content) {
                   if (showOne) {
@@ -74,6 +73,17 @@ function readAllRecords(connection) {
       };
 
   return readBatch(null);
+}
+
+function byClientUpdatedAt(all) {
+  return (key1, key2) => {
+    let a = all[key1], b = all[key2];
+    if (a.client_updated_at < b.client_updated_at)
+      return -1;
+    if (a.client_updated_at > b.client_updated_at)
+      return 1;
+    return 0;
+  };
 }
 
 
@@ -118,33 +128,19 @@ function main(args) {
   var p = sn.signin({email:email, getPasswordFn: getPassword})
     .then( readAllRecords )
     .then( (all) => {
-      try {
-        console.log('retrieved %d items', Object.keys(all).length);
+        console.log('\nretrieved %d items', Object.keys(all).length);
         Object.keys(all)
-          .sort( (key1, key2) => {
-            let a = all[key1], b = all[key2];
-            if (a.client_updated_at < b.client_updated_at)
-              return -1;
-            if (a.client_updated_at > b.client_updated_at)
-              return 1;
-            return 0;
-          })
+          .sort( byClientUpdatedAt(all) )
           .forEach( (key, ix) => {
             var item = all[key];
             console.log(sprintf('%3d. %-48s  %-24s   %-24s', ix + 1, item.title, item.client_updated_at, item.updated_at ));
           });
-      }
-      catch (exc) {
-        console.log('exception: ' + exc);
-      }
     })
-
     .catch( (error) => {
       console.log('error: ' + JSON.stringify(error));
     });
 
 }
 
-
-
 main(process.argv.slice(2));
+
