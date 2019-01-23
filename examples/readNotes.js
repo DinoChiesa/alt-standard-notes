@@ -1,7 +1,7 @@
 // readNotes.js
 // ------------------------------------------------------------------
 //
-// read notes stored in standard notes for a particular user
+// read notes stored in standard notes for a particular user.
 //
 
 /* jshint esversion: 6, node: true, strict: false, camelcase : false */
@@ -121,13 +121,22 @@ function main(args) {
   sn.signin({email:options.email, getPasswordFn: getPassword})
     .then( readAllRecords )
     .then( (all) => {
-        console.log('\nretrieved %d items', Object.keys(all).length);
-        Object.keys(all)
-          .sort( byNamedProperty('client_updated_at', all) )
-          .forEach( (key, ix) => {
-            var item = all[key];
-            console.log(sprintf('%3d. %-48s  %-24s   %-24s', ix + 1, item.title, item.client_updated_at, item.updated_at ));
-          });
+      console.log('\nretrieved %d items', Object.keys(all).length);
+      let maxTitleLength = 0;
+      Object.keys(all)
+        .forEach( (key) => {
+          var item = all[key];
+          if (item.title.length > maxTitleLength) {
+            maxTitleLength = item.title.length;
+          }
+        });
+      let formatStr = sprintf('%%3d. %%-%ds  %%-24s   %%-24s', maxTitleLength);
+      Object.keys(all)
+        .sort( byNamedProperty('client_updated_at', all) )
+        .forEach( (key, ix) => {
+          var item = all[key];
+          console.log(sprintf(formatStr, ix + 1, item.title, item.client_updated_at, item.updated_at ));
+        });
     })
     .catch( (error) => {
       console.log('error: ' + JSON.stringify(error));
